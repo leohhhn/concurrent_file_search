@@ -1,19 +1,29 @@
-#include <pthread.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <unistd.h>
 #include <string.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
 #include "potpisi.h"
+
+typedef struct workerArgs {
+    int id;
+    int available; // 1 if available, 0 if working
+} workerArgs;
 
 int scanFile(char path[512]) {
 
     FILE *f = fopen(path, "r");
 
     if (f) {
+        fseek(f, 0, SEEK_END); // seek to end of file
+        long fileSize = ftell(f); // get current file pointer
+        fseek(f, 0, SEEK_SET); // seek back to beginning of file
+
+        printf("file size: %ld\n", fileSize);
         printf("Opened file at %s\n", path);
-        int numberOfPrimes = 0, searchedSoFar = 0;
+        unsigned int numberOfPrimes = 0, searchedSoFar = 0;
         char *buffer = (char *) malloc(BLOCK_SIZE * sizeof(char));
 
         while (fgets(buffer, BLOCK_SIZE * sizeof(char), f) != 0) {
@@ -31,23 +41,10 @@ int scanFile(char path[512]) {
 
         printf("no of prime no: %d\nLength of file: %d\n", numberOfPrimes, searchedSoFar);
 
+        // free(buffer); todo see why error occurs here
     } else {
         printf("Failed to open file at %s", path);
     }
     return 0;
 }
-
-/// Returns 1 if number is prime, 0 otherwise
-int isNumberPrime(int input) {
-
-    if (input <= 1) return 0;
-    for (int i = 2; i <= sqrt(input); i++)
-        if (input % i == 0) return 0;
-    // printf("%d\n", input);
-    return 1;
-}
-
-
-
-
 
