@@ -57,7 +57,7 @@ int scanFile(char path[MAX_NAME_LENGTH], int *done, int *currRes, const int *wor
 }
 
 int scanDir(char path[512], filesAndFolders *faf, int *toTerminate) {
-    // printf("Scanning dir at %s\n", path);
+    // printf("Scanning dir at %s\n", name);
     DIR *folder = opendir(path);
     struct dirent *entry;
 
@@ -68,34 +68,36 @@ int scanDir(char path[512], filesAndFolders *faf, int *toTerminate) {
         if (entry->d_type == DT_DIR &&
             strcmp(entry->d_name, ".") != 0 &&
             strcmp(entry->d_name, "..") != 0) {
-            // if you found a dir inside the dir, excluding . & ..
-            if (!folderIsNew(faf, entry->d_name)) {// todo check if addressing is correct
-                printf("nothing new, skipping\n");
+
+            if (!folderIsNew(faf, entry->d_name))
                 continue;
-            }
 
             int watcherCreated = makeWatcher(path, entry->d_name, toTerminate);
-            if (!watcherCreated) {
-                printf("Failed to make child watcher.\n");
+            if (!watcherCreated)
                 continue;
-            }
 
             strcpy(faf->folders[faf->folderNum++], entry->d_name); // copy folder name into folder array inside faf
-            printf("Found dir %d: %s\n", faf->folderNum - 1, faf->folders[faf->folderNum - 1]);
+            //printf("Found dir %d: %s\n", faf->folderNum - 1, faf->folders[faf->folderNum - 1]);
         } else if (entry->d_type == DT_REG) {
-            // if you found a file
-            // todo add if file modified / new
+            char modifiedTime[50];
+            getLastModificationTime(path, entry->d_name, modifiedTime);
 
-//            if (!fileModifiedOrNew(faf, entry->d_name)) {
-//                // todo remove printf after testing
-//                printf("File %s was not modified and is not new, skipping.\n", entry->d_name);
-//                continue;
-//            }
+            int modifySwitch = fileIsNewOrModified(faf, entry->d_name, modifiedTime);
 
-//            strcpy(faf->files[faf->fileNum].path, entry->d_name); // copy file name into file array inside faf
-//            printf("Dir %d: %s\n", faf->fileNum - 1, faf->folders[faf->fileNum - 1]);
-
-            // todo blocking array things for workers here
+            if (modifySwitch == 0) {
+                continue;
+            } else if (modifySwitch == 1) {
+                strcpy(faf->files[faf->fileNum].name, entry->d_name);
+                strcpy(faf->files[faf->fileNum++].lastModified, modifiedTime);
+                printf("\nNew file found!\nName: %s\nLast modified: %s\ncurrent modified time: %s\n\n",
+                       faf->files[faf->fileNum - 1].name,
+                       faf->files[faf->fileNum - 1].lastModified, modifiedTime);
+                // todo add file to blocking array
+            } else if (modifySwitch == 2) {
+                printf("\nFile was modified! \nName: %s\nNew modified time: %s\n\n",
+                       faf->files[faf->fileNum - 1].name, modifiedTime);
+                // todo add file to blocking array
+            }
         }
     }
     return 0;

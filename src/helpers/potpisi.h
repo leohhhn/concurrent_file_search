@@ -9,6 +9,8 @@
 #define MAX_PATH_LENGTH 512
 #define MAX_NAME_LENGTH 128
 
+#define WATCHER_SLEEP_TIME 2
+
 typedef struct workerArgs {
     int id;
     int available; // 1 if available, 0 if working
@@ -18,10 +20,11 @@ typedef struct watcherArgs {
     int *toTerminate;
     int root; // 1 if watcher is root
     char path[MAX_PATH_LENGTH];
+    pthread_t *self;
 } watcherArgs;
 
 typedef struct fileInfo {
-    char *path;
+    char *name; // filename without paths before
     char *lastModified; // returned by stat
 } fileInfo;
 
@@ -40,7 +43,9 @@ int makeWatcher(char *parentPath, char *currPath, int *toTerminate);
 
 int folderIsNew(filesAndFolders *faf, char *currFolder);
 
-int fileModifiedOrNew(filesAndFolders *faf, char *currFile);
+int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modfTime[50]);
+
+void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]);
 
 int scanDir(char path[512], filesAndFolders *faf, int *toTerminate);
 

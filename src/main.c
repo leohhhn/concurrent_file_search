@@ -16,16 +16,18 @@ void *worker(void *a) {
 
 void *watcher(void *_args) {
     watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a root watcher
-    printf("Watcher watching dir: %s\n", args->path);
+    printf("New watcher created at %s\n", args->path);
 
     // allocating memory
     filesAndFolders *faf = (filesAndFolders *) malloc(sizeof(filesAndFolders));
-    faf->folders = malloc(sizeof(char *) * MAX_FOLDERS); // mallocing the array of char*
+    faf->folders = malloc(sizeof(char *) * MAX_FOLDERS);
     faf->files = malloc(sizeof(fileInfo) * MAX_FILES);
+    faf->fileNum = 0;
+    faf->folderNum = 0;
 
     for (int i = 0; i < MAX_FOLDERS; i++) {
         faf->folders[i] = malloc(sizeof(char) * MAX_NAME_LENGTH); // mallocing the subarray of chars
-        faf->files[i].path = malloc(sizeof(char) * MAX_NAME_LENGTH);
+        faf->files[i].name = malloc(sizeof(char) * MAX_NAME_LENGTH);
         faf->files[i].lastModified = calloc(50, sizeof(char));
     }
 
@@ -33,33 +35,31 @@ void *watcher(void *_args) {
     while (1) {
         if (*(args->toTerminate) == 1) {
             // toTerminate will be set directly from the console, as root watcher args are in a global array
-            printf("Dir at %s to be deleted. Watcher & its children will be exiting.\n", args->path);
+            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path);
             break;
         }
-
         // scan dir & create children watchers
         int success = scanDir(args->path, faf, args->toTerminate); // always pass same toTerminate to children
 
         if (success == -1) {
-            printf("Could not find dir at %s. Watcher exiting.\n", args->path);
+            printf("Could not open dir at %s. Watcher exiting.\n", args->path);
             break;
         }
-        sleep(10);
+        sleep(WATCHER_SLEEP_TIME);
     }
 
     // freeing memory
     for (int i = 0; i < MAX_FILES; i++) {
         free(faf->folders[i]);
-        free(faf->files[i].path);
+        free(faf->files[i].name);
         free(faf->files[i].lastModified);
     }
     free(faf->folders);
     free(faf->files);
     free(faf);
-
     if (args->root != 1) {
-        // free your own args if not root
         free(args->path);
+        free(args->self);
         free(args);
     }
     pthread_exit(NULL);
@@ -121,7 +121,6 @@ void helpMenu() {
 }
 
 int main(int argc, char *argv[]) {
-    printf("Path relative to the working directory is: %s\n", argv[0]);
 
 //    pthread_t commandLineThread;
 //    pthread_create(&commandLineThread, NULL, cli, NULL);
@@ -135,6 +134,7 @@ int main(int argc, char *argv[]) {
     r->toTerminate = malloc(sizeof(int));
     *(r->toTerminate) = 0;
     r->root = 1;
+    r->self = &watcherr;
     int i = 0;
     rootWatcherArgsArray[i] = *r;
 
