@@ -1,50 +1,47 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <time.h>
+#include <sys/stat.h>
 #include <string.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <unistd.h>
-#include "potpisi.h"
 
-typedef struct workerArgs {
-    int id;
-    int available; // 1 if available, 0 if working
-} workerArgs;
+int makeWatcher(char *parentPath, char *currPath, int *toTerminate) {
+    char tmp[512];
+    strcpy(tmp, parentPath); // parent path is always absolute, does not end with "/"
+    strcat(tmp, "/");
+    strcat(tmp, currPath);
+    pthread_t *t = (pthread_t *) malloc(sizeof(pthread_t)); // todo where should i free this memory?
 
-int scanFile(char path[512]) {
+    watcherArgs *wa = malloc(sizeof(watcherArgs));
 
-    FILE *f = fopen(path, "r");
+    wa->toTerminate = toTerminate;
+    wa->root = 0;
+    strcpy(wa->path, tmp);
 
-    if (f) {
-        fseek(f, 0, SEEK_END); // seek to end of file
-        long fileSize = ftell(f); // get current file pointer
-        fseek(f, 0, SEEK_SET); // seek back to beginning of file
-
-        printf("file size: %ld\n", fileSize);
-        printf("Opened file at %s\n", path);
-        unsigned int numberOfPrimes = 0, searchedSoFar = 0;
-        char *buffer = (char *) malloc(BLOCK_SIZE * sizeof(char));
-
-        while (fgets(buffer, BLOCK_SIZE * sizeof(char), f) != 0) {
-            searchedSoFar += strlen(buffer);
-            while (*buffer) {
-                if (isdigit(*buffer)) {
-                    int val = (int) strtol(buffer, &buffer, 10);
-                    if (isNumberPrime(val))
-                        numberOfPrimes++;
-                } else {
-                    buffer++;
-                }
-            }
-        }
-
-        printf("no of prime no: %d\nLength of file: %d\n", numberOfPrimes, searchedSoFar);
-
-        // free(buffer); todo see why error occurs here
-    } else {
-        printf("Failed to open file at %s", path);
-    }
-    return 0;
+    return !pthread_create(t, NULL, watcher, (void *) wa);
 }
+
+
+int folderIsNew(filesAndFolders *faf, char *currFolder) {
+    for (int i = 0; i < faf->folderNum; i++)
+        if (strcmp(faf->folders[i], currFolder) == 0)
+            return 0; // folder already exists
+    return 1;
+}
+
+//int fileModifiedOrNew(filesAndFolders *faf, char *currFilePath, char currTime[50]) {
+//    for (int i = 0; i < faf->fileNum; i++) {
+//        if (strcmp(faf->files[i].path, currFilePath) == 0) { // if file is not new
+//            if (strcmp(faf->files[i].lastModified, currTime) != 0) // is the file modified?
+//                return 1;
+//            return 0;
+//        }
+//    }
+//}
+//
+//int getLastModificationTime(char *currFilePath, char returnTime[50]) {
+//
+//    struct stat attrib;
+//    stat(currFilePath, &attrib);
+//    strftime(returnTime, 50, "%Y-%m-%d %H:%M:%S", localtime(&attrib.st_mtime));
+//}
+
+
 

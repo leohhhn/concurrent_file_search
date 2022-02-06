@@ -1,6 +1,6 @@
 #include <math.h>
 #include <string.h>
-#include "potpisi.h"
+
 
 /// Returns 1 if number is prime, 0 otherwise
 int isNumberPrime(int input) {
@@ -10,6 +10,13 @@ int isNumberPrime(int input) {
     // printf("%d\n", input);
     return 1;
 }
+
+int parseCommand(char *command) {
+
+}
+
+
+
 
 
 
