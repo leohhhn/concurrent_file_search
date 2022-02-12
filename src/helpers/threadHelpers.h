@@ -2,19 +2,16 @@
 #include <sys/stat.h>
 #include <string.h>
 
-int makeWatcher(char *parentPath, char *currPath, int *toTerminate) {
-    char tmp[512];
-    strcpy(tmp, parentPath); // parent name is always absolute, does not end with "/"
-    strcat(tmp, "/");
-    strcat(tmp, currPath);
-    pthread_t *t = (pthread_t *) malloc(sizeof(pthread_t));
-
+int makeWatcher(char *currPath, int *toTerminate, treeNode *parent) {
+    pthread_t *t = malloc(sizeof(pthread_t));
     watcherArgs *wa = malloc(sizeof(watcherArgs));
 
+    wa->path = malloc(sizeof(char) * MAX_PATH_LENGTH);
     wa->toTerminate = toTerminate;
     wa->root = 0;
-    strcpy(wa->path, tmp);
+    wa->dirNode = addChildToParent(parent, currPath, 0);
     wa->self = t;
+    buildPath(parent->fullPath, currPath, wa->path);
 
     return !pthread_create(t, NULL, watcher, (void *) wa);
 }
@@ -40,16 +37,12 @@ int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modifiedT
 }
 
 void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]) {
-    // build name
     char fullFilePath[MAX_PATH_LENGTH];
-    strcpy(fullFilePath, parentPath);
-    strcat(fullFilePath, "/");
-    strcat(fullFilePath, currFileName);
+    buildPath(parentPath, currFileName, fullFilePath);
 
     struct stat attrib;
     stat(fullFilePath, &attrib);
     strftime(returnTime, 50, "%Y-%m-%d %H:%M:%S", localtime(&attrib.st_mtime));
-
 }
 
 

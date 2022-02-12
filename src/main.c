@@ -1,25 +1,23 @@
 #include "threads.h"
 #include "helpers/generalHelpers.h"
 
-sem_t workerSemaphore;
-pthread_mutex_t watcherIDMutex;
-int watcherID = 0;
+sem_t empty;
+sem_t full;
+sem_t blockingArrayMutex;
 
 int numOfWorkers;
+int indexIn = 0;
+int indexOut = 0;
+
 pthread_t *workerThreads; // malloced array of pthread workers
 watcherArgs rootWatcherArgsArray[64]; // global array for console to interact with watchers
 
-void *worker(void *a) {
-    sem_wait(&workerSemaphore);
-    printf("From thread: %d\n", ((workerArgs *) a)->id);
-}
-
 void *watcher(void *_args) {
     watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a root watcher
-    printf("New watcher created at %s\n", args->path);
+    printf("New watcher created at %s\n", args->path + 54);
 
     // allocating memory
-    filesAndFolders *faf = (filesAndFolders *) malloc(sizeof(filesAndFolders));
+    filesAndFolders *faf = malloc(sizeof(filesAndFolders));
     faf->folders = malloc(sizeof(char *) * MAX_FOLDERS);
     faf->files = malloc(sizeof(fileInfo) * MAX_FILES);
     faf->fileNum = 0;
@@ -28,23 +26,27 @@ void *watcher(void *_args) {
     for (int i = 0; i < MAX_FOLDERS; i++) {
         faf->folders[i] = malloc(sizeof(char) * MAX_NAME_LENGTH); // mallocing the subarray of chars
         faf->files[i].name = malloc(sizeof(char) * MAX_NAME_LENGTH);
-        faf->files[i].lastModified = calloc(50, sizeof(char));
+        faf->files[i].lastModified = malloc(sizeof(char) * 50);
     }
 
     // watching
     while (1) {
         if (*(args->toTerminate) == 1) {
             // toTerminate will be set directly from the console, as root watcher args are in a global array
-            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path);
+            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path + 54);
             break;
         }
+
         // scan dir & create children watchers
-        int success = scanDir(args->path, faf, args->toTerminate); // always pass same toTerminate to children
+        int success = scanDir(args->path, faf, args->dirNode, args->toTerminate);
 
         if (success == -1) {
-            printf("Could not open dir at %s. Watcher exiting.\n", args->path);
+            // todo update result tree
+            printf("Dir at %s deleted in the OS filesystem. Watcher & children will be exiting.\n", args->path + 54);
             break;
         }
+
+
         sleep(WATCHER_SLEEP_TIME);
     }
 
@@ -58,20 +60,37 @@ void *watcher(void *_args) {
     free(faf->files);
     free(faf);
     if (args->root != 1) {
-        free(args->path);
         free(args->self);
+        free(args->path);
         free(args);
     }
     pthread_exit(NULL);
 }
 
+_Noreturn void *worker(void *a) {
+    printf("From thread: %d\n", ((workerArgs *) a)->id);
+
+    while (1) {
+
+
+
+        // get file
+
+
+        sleep(2);
+    }
+
+}
+
 _Noreturn void *cli() {
     numOfWorkers = 0;
     printf("Unesite broj Worker niti: ");
-    scanf("%d", &numOfWorkers);
+    scanf("%d%*c", &numOfWorkers);
 
-    sem_init(&workerSemaphore, 0, 0);
-    workerThreads = (pthread_t *) malloc(numOfWorkers * sizeof(pthread_t));
+    sem_init(&full, 0, 0);
+    sem_init(&empty, 0, numOfWorkers);
+
+    workerThreads = malloc(numOfWorkers * sizeof(pthread_t));
 
     workerArgs wargs[numOfWorkers];
 
@@ -84,31 +103,35 @@ _Noreturn void *cli() {
     int i = 0, cmd = 0;
     do {
         char *s = malloc(sizeof(char) * 128);
+        for (int j = 0; j < strlen(s); j++)
+            s[j] = '0';
         printf("Enter a command:\n");
         fgets(s, sizeof(s), stdin);
         cmd = parseCommand(s);
         free(s);
 
-        switch (cmd) {
-            case 1:
-
-                break;
-            case 2:
-                break;
-            case 3:
-                break;
-            case -1:
-                break;
-            default:
-                helpMenu();
-                break;
-        }
-
+//        switch (cmd) {
+//            case 1:
+//
+//                break;
+//            case 2:
+//                break;
+//            case 3:
+//                break;
+//            case -1:
+//                break;
+//            default:
+//                helpMenu();
+//                break;
+//        }
+        sleep(10);
 
     } while (cmd != -1);
 
-    sem_close(&workerSemaphore);
+    sem_close(&full);
+    sem_close(&empty);
     free(workerThreads);
+    // free(blockingArray);
     pthread_exit(NULL);
 }
 
@@ -129,16 +152,22 @@ int main(int argc, char *argv[]) {
 
     pthread_t watcherr;
     watcherArgs *r = malloc(sizeof(watcherArgs));
-    strcpy(r->path, "/home/lav/Desktop/faks 2122/SRV/concurrent_file_search/data");
+    r->path = malloc(sizeof(char) * MAX_PATH_LENGTH);
+    strcpy(r->path, "/home/lav/Desktop/faks 2122/SRV/concurrent_file_search/");
 
     r->toTerminate = malloc(sizeof(int));
+    r->dirNode = makeNewTreeNode(r->path, "", 0);
     *(r->toTerminate) = 0;
     r->root = 1;
     r->self = &watcherr;
-    int i = 0;
-    rootWatcherArgsArray[i] = *r;
+    rootWatcherArgsArray[0] = *r;
 
-    pthread_create(&watcherr, NULL, watcher, &(rootWatcherArgsArray[i]));
+    blockingArray = malloc(sizeof(char *) * BA_SIZE);
+    for (int i = 0; i < BA_SIZE; i++) {
+        blockingArray[i] = malloc(sizeof(char) * MAX_PATH_LENGTH);
+    }
+
+    pthread_create(&watcherr, NULL, watcher, &(rootWatcherArgsArray[0]));
 
     pthread_join(watcherr, NULL);
     return 0;
