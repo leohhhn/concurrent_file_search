@@ -1,20 +1,12 @@
 #include "threads.h"
 #include "helpers/generalHelpers.h"
 
-sem_t empty;
-sem_t full;
-sem_t blockingArrayMutex;
-
 int numOfWorkers;
-int indexIn = 0;
-int indexOut = 0;
-
 pthread_t *workerThreads; // malloced array of pthread workers
-watcherArgs rootWatcherArgsArray[64]; // global array for console to interact with watchers
 
 void *watcher(void *_args) {
     watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a root watcher
-    printf("New watcher created at %s\n", args->path + 54);
+    //printf("watcher:: New watcher created at %s\n", args->path);
 
     // allocating memory
     filesAndFolders *faf = malloc(sizeof(filesAndFolders));
@@ -33,7 +25,7 @@ void *watcher(void *_args) {
     while (1) {
         if (*(args->toTerminate) == 1) {
             // toTerminate will be set directly from the console, as root watcher args are in a global array
-            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path + 54);
+            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path);
             break;
         }
 
@@ -42,10 +34,10 @@ void *watcher(void *_args) {
 
         if (success == -1) {
             // todo update result tree
-            printf("Dir at %s deleted in the OS filesystem. Watcher & children will be exiting.\n", args->path + 54);
+            printf("Dir at %s can't be found or was deleted in the OS filesystem. Watcher & children will be exiting.\n",
+                   args->path);
             break;
         }
-
 
         sleep(WATCHER_SLEEP_TIME);
     }
@@ -68,70 +60,52 @@ void *watcher(void *_args) {
 }
 
 _Noreturn void *worker(void *a) {
-    printf("From thread: %d\n", ((workerArgs *) a)->id);
+    workerArgs *args = (workerArgs *) a;
 
     while (1) {
-
-
-
-        // get file
-
-
-        sleep(2);
+        treeNode *nodeToScan = readFromBA();
+        int scanning = scanFile(nodeToScan, args->id);
     }
-
 }
 
 _Noreturn void *cli() {
     numOfWorkers = 0;
     printf("Unesite broj Worker niti: ");
-    scanf("%d%*c", &numOfWorkers);
+
+    char tmp[5];
+    fgets(tmp, sizeof(tmp), stdin);
+    numOfWorkers = atoi(tmp);
 
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, numOfWorkers);
+    sem_init(&blockingArrayMutex, 0, 1);
 
     workerThreads = malloc(numOfWorkers * sizeof(pthread_t));
-
     workerArgs wargs[numOfWorkers];
 
     for (int i = 0; i < numOfWorkers; i++) {
         wargs[i] = (workerArgs) {i, 1};
-        printf("creating thread %d with args: id=%d avail=%d\n", i, wargs[i].id, wargs[i].available);
+        //  printf("creating thread %d with args: id=%d avail=%d\n", i, wargs[i].id, wargs[i].available);
         pthread_create(workerThreads + i, NULL, worker, wargs + i);
     }
 
-    int i = 0, cmd = 0;
+    int cmd = 0;
+
     do {
-        char *s = malloc(sizeof(char) * 128);
-        for (int j = 0; j < strlen(s); j++)
-            s[j] = '0';
+        char *s = malloc(sizeof(char) * (MAX_PATH_LENGTH + 128));
+
         printf("Enter a command:\n");
-        fgets(s, sizeof(s), stdin);
+        fgets(s, MAX_PATH_LENGTH + 128, stdin);
         cmd = parseCommand(s);
+
         free(s);
-
-//        switch (cmd) {
-//            case 1:
-//
-//                break;
-//            case 2:
-//                break;
-//            case 3:
-//                break;
-//            case -1:
-//                break;
-//            default:
-//                helpMenu();
-//                break;
-//        }
-        sleep(10);
-
     } while (cmd != -1);
+
+    printf("\nexiting cli thread\n");
 
     sem_close(&full);
     sem_close(&empty);
     free(workerThreads);
-    // free(blockingArray);
     pthread_exit(NULL);
 }
 
@@ -145,30 +119,20 @@ void helpMenu() {
 
 int main(int argc, char *argv[]) {
 
-//    pthread_t commandLineThread;
-//    pthread_create(&commandLineThread, NULL, cli, NULL);
-//
-//    pthread_join(commandLineThread, NULL);
+    char cwd[MAX_PATH_LENGTH] = "";
+    strcpy(cwd, argv[0]);
+    cwd[strlen(cwd) - 4] = '\0';
 
-    pthread_t watcherr;
-    watcherArgs *r = malloc(sizeof(watcherArgs));
-    r->path = malloc(sizeof(char) * MAX_PATH_LENGTH);
-    strcpy(r->path, "/home/lav/Desktop/faks 2122/SRV/concurrent_file_search/");
-
-    r->toTerminate = malloc(sizeof(int));
-    r->dirNode = makeNewTreeNode(r->path, "", 0);
-    *(r->toTerminate) = 0;
-    r->root = 1;
-    r->self = &watcherr;
-    rootWatcherArgsArray[0] = *r;
-
-    blockingArray = malloc(sizeof(char *) * BA_SIZE);
-    for (int i = 0; i < BA_SIZE; i++) {
-        blockingArray[i] = malloc(sizeof(char) * MAX_PATH_LENGTH);
+    for (int i = 0; i < 64; i++) {
+        rootWatcherArgsArray[i] = NULL;
+        treeRoots[i] = NULL;
+        blockingArray[i] = NULL;
     }
 
-    pthread_create(&watcherr, NULL, watcher, &(rootWatcherArgsArray[0]));
+    pthread_t commandLineThread;
+    pthread_create(&commandLineThread, NULL, cli, NULL);
 
-    pthread_join(watcherr, NULL);
+    pthread_join(commandLineThread, NULL);
+
     return 0;
 }

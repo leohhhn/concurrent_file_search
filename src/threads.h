@@ -4,19 +4,19 @@
 #include <sys/stat.h>
 #include "helpers/declarations.h"
 #include "helpers/threadHelpers.h"
+#include "blockingArray.h"
 
-int scanFile(char fullPath[MAX_NAME_LENGTH], int *done, int *currRes, int *workerID) {
-    FILE *f = fopen(fullPath, "r");
+int scanFile(treeNode *nodeToScan, int workerID) {
+    FILE *f = fopen(nodeToScan->fullPath, "r");
 
     if (!f) {
-        printf("Failed to open file at %s\n", fullPath);
+        printf("Failed to open file at %s\n", nodeToScan->fullPath);
         return -1; // err handled in worker function
     }
 
-    printf("Opened file at %s\n", fullPath);
-    searchFileForNumbers(f, currRes, workerID, done);
+    printf("Opened file at %s\n", nodeToScan->fullPath);
+    searchFileForNumbers(f, &(nodeToScan->currentRes), workerID, &(nodeToScan->searchCompleted));
 
-    fclose(f);
     return 0;
 }
 
@@ -34,12 +34,11 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
 
             if (!folderIsNew(faf, entry->d_name)) continue;
 
-            int watcherCreated = makeWatcher(entry->d_name, toTerminate, ownNode);
+            int watcherCreated = makeWatcher(entry->d_name, toTerminate, ownNode, NULL);
             if (!watcherCreated) continue;
 
             // copy folder name into folder array inside faf & into tree
-            strcpy(faf->folders[faf->folderNum++], entry->d_name);
-            addChildToParent(ownNode, entry->d_name, 0);
+            strcpy(faf->folders[faf->folderNum++], entry->d_name); // todo change to null & malloc
 
         } else if (entry->d_type == DT_REG) {
             char modifiedTime[50];
@@ -52,20 +51,18 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
             } else if (modifySwitch == 1) { // totally new file
                 strcpy(faf->files[faf->fileNum].name, entry->d_name);
                 strcpy(faf->files[faf->fileNum++].lastModified, modifiedTime);
-                printf("\nNew file found!\nName: %s\ncurrent modified time: %s\n\n",
-                       faf->files[faf->fileNum - 1].name,
-                       faf->files[faf->fileNum - 1].lastModified);
+//                printf("\nNew file found!\nName: %s\ncurrent modified time: %s\n\n",
+//                       faf->files[faf->fileNum - 1].name,
+//                       faf->files[faf->fileNum - 1].lastModified);
 
-                addChildToParent(ownNode, entry->d_name, 1);
+                treeNode *newFileNode = addChildToParent(ownNode, entry->d_name, 1);
+                addToBA(newFileNode);
+                printf("Added node %s to BA\n", newFileNode->name);
 
-                // todo gotta check if file is currently being worked on before adding it again....
-                // addToBA();
-                // todo add file to blocking array
             } else if (modifySwitch == 2) { // existing file modified
-                printf("\n%s was modified!\nNew modified time: %s\n\n",
-                       faf->files[faf->fileNum - 1].name, modifiedTime);
+//                printf("\n%s was modified!\nNew modified time: %s\n\n",
+//                       faf->files[faf->fileNum - 1].name, modifiedTime);
                 //  addToBA();
-
             }
         }
     }

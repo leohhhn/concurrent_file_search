@@ -2,18 +2,24 @@
 #include <sys/stat.h>
 #include <string.h>
 
-int makeWatcher(char *currPath, int *toTerminate, treeNode *parent) {
+// initArgs - not null only if creating root watcher
+int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs *initArgs) {
     pthread_t *t = malloc(sizeof(pthread_t));
-    watcherArgs *wa = malloc(sizeof(watcherArgs));
 
-    wa->path = malloc(sizeof(char) * MAX_PATH_LENGTH);
-    wa->toTerminate = toTerminate;
-    wa->root = 0;
-    wa->dirNode = addChildToParent(parent, currPath, 0);
-    wa->self = t;
-    buildPath(parent->fullPath, currPath, wa->path);
+    if (initArgs) {
+        return !pthread_create(t, NULL, watcher, (void *) initArgs);
+    } else {
+        watcherArgs *wa = malloc(sizeof(watcherArgs));
 
-    return !pthread_create(t, NULL, watcher, (void *) wa);
+        wa->path = malloc(sizeof(char) * MAX_PATH_LENGTH);
+        wa->toTerminate = toTerminate;
+        wa->self = t;
+        wa->root = 0;
+        wa->dirNode = addChildToParent(parent, currPath, 0);
+        buildPath(parent->fullPath, currPath, wa->path);
+
+        return !pthread_create(t, NULL, watcher, (void *) wa);
+    }
 }
 
 int folderIsNew(filesAndFolders *faf, char *currFolder) {
