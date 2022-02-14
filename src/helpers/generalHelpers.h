@@ -10,7 +10,7 @@ int isNumberPrime(int input) {
     return 1;
 }
 
-void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted) {
+void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted, char *fileName) {
 
 //        // how big is the file?
 //        fseek(f, 0, SEEK_END); // seek to end of file
@@ -23,29 +23,29 @@ void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCom
     char *buffer = malloc(BLOCK_SIZE * sizeof(char));
 //    char *tmp = buffer;
 
-    while (fgets(buffer, BLOCK_SIZE * sizeof(char), f) != 0) {
+    while (fgets(buffer, BLOCK_SIZE * sizeof(char), f)) {
         searchedSoFar += (int) strlen(buffer);
-        if (searchedSoFar / BLOCK_SIZE > i++) {
+        if (searchedSoFar / BLOCK_SIZE > i) {
             *currentRes = numberOfPrimes;
-
-            printf("Worker %d searched %d bytes, and found %d prime numbers so far.\n", workerID,
-                   searchedSoFar, *currentRes);
+            printf("Worker %d searched %d bytes, and found %d prime numbers in %s so far.\n", workerID,
+                   searchedSoFar, *currentRes, fileName);
+            i++;
         }
-        while (*buffer) {
-            if (isdigit(*buffer)) {
-                int val = (int) strtol(buffer, &buffer, 10);
+
+        char *tmp = buffer;
+        while (*tmp) {
+            if (isdigit(*tmp)) {
+                int val = (int) strtol(tmp, &tmp, 10);
                 if (isNumberPrime(val))
                     numberOfPrimes++;
             } else {
-                buffer++;
+                tmp++;
             }
         }
     }
 
     *searchCompleted = 1;
     *currentRes = numberOfPrimes;
-
-//   free(tmp);
 }
 
 void buildPath(char parentPath[MAX_PATH_LENGTH],
@@ -235,12 +235,17 @@ int parseCommand(char *command) {
         makeWatcher(NULL, NULL, NULL, tmpArgs);
         return 0;
     } else if (strcmp(parsedCommand[0], "result") == 0) {
+
+        // todo add result without args to print all trees
         for (i = 0; i < 64; i++) {
             if (treeRoots[i] && strcmp(treeRoots[i]->fullPath, parsedCommand[1]) == 0) {
                 printTree(treeRoots[i], 0);
                 return 0;
             }
         }
+
+        // todo add for any subtree, or file
+
     } else if (strcmp(parsedCommand[0], "help") == 0) {
         helpMenu();
         return 0;

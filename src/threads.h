@@ -15,7 +15,8 @@ int scanFile(treeNode *nodeToScan, int workerID) {
     }
 
     printf("Opened file at %s\n", nodeToScan->fullPath);
-    searchFileForNumbers(f, &(nodeToScan->currentRes), workerID, &(nodeToScan->searchCompleted));
+    nodeToScan->searchCompleted = 0;
+    searchFileForNumbers(f, &(nodeToScan->currentRes), workerID, &(nodeToScan->searchCompleted), nodeToScan->name);
 
     return 0;
 }

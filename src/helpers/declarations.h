@@ -94,7 +94,7 @@ int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modfTime[
 
 void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]);
 
-void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted);
+void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted, char* fileName);
 
 // pthread functions
 void *watcher(void *_args);
