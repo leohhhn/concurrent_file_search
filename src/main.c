@@ -1,14 +1,12 @@
 #include "threads.h"
-#include "helpers/generalHelpers.h"
+#include "declarations.h"
+#include "commandParser.h"
 
 int numOfWorkers;
 pthread_t *workerThreads; // malloced array of pthread workers
 
-
-
 void *watcher(void *_args) {
-    watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a root watcher
-    //printf("watcher:: New watcher created at %s\n", args->path);
+    watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a isRoot watcher
 
     // allocating memory
     filesAndFolders *faf = malloc(sizeof(filesAndFolders));
@@ -23,8 +21,8 @@ void *watcher(void *_args) {
     // watching
     while (1) {
         if (*(args->toTerminate) == 1) {
-            // toTerminate will be set directly from the console, as root watcher args are in a global array
-            printf("Dir at %s to be deleted from system. Watcher & its children will be exiting.\n", args->path);
+            // toTerminate will be set directly from the console, as isRoot watcher args are in a global array
+            printf("Dir at %s was deleted from the system.\n", args->path);
             break;
         }
 
@@ -32,31 +30,28 @@ void *watcher(void *_args) {
         int success = scanDir(args->path, faf, args->dirNode, args->toTerminate);
 
         if (success == -1) {
-            printf("Dir at %s can't be found or was deleted in the OS filesystem. Watcher & children will be exiting.\n",
+            printf("Dir at %s can't be found or was deleted in the OS filesystem.\n",
                    args->path);
             break;
         }
         sleep(WATCHER_SLEEP_TIME);
     }
 
-    // free node and all children
-    printf("freeing node at %s\n", args->dirNode->name);
-    freeTreeNode(args->dirNode);
-
-    // todo fix segfault when deleting a folder from the FS
     // freeing memory
-    for (int i = 0; i < MAX_FILES; i++) {
-        free(faf->folders[i]);
-        free(faf->files[i]->lastModified);
-        free(faf->files[i]->name);
-    }
     free(faf->folders);
     free(faf->files);
     free(faf);
-    if (args->root != 1) {
+    if (args->isRoot != 1) {
         free(args->self);
         free(args->path);
         free(args);
+    } else {
+        for (int i = 0; i < 64; ++i) {
+            if (treeRoots[i] && strcmp(treeRoots[i]->fullPath, args->path) == 0) {
+                freeTreeNode(treeRoots[i]);
+                treeRoots[i] = NULL;
+            }
+        }
     }
     pthread_exit(NULL);
 }
@@ -66,44 +61,47 @@ _Noreturn void *worker(void *a) {
 
     while (1) {
         treeNode *nodeToScan = readFromBA();
-        int scanning = scanFile(nodeToScan, args->id);
+        scanFile(nodeToScan, args->id);
     }
 }
 
 _Noreturn void *cli() {
     numOfWorkers = 0;
-    printf("Unesite broj Worker niti: ");
+    printf("Enter the number of Worker threads: ");
 
     char tmp[5];
-    fgets(tmp, sizeof(tmp), stdin);
+    fgets(tmp, 5, stdin);
     numOfWorkers = atoi(tmp);
 
+    if (numOfWorkers <= 0) {
+        printf("Number or workers must be at least 1. Please try again.\n");
+        pthread_exit(NULL);
+    }
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, numOfWorkers);
     sem_init(&blockingArrayMutex, 0, 1);
 
     workerThreads = malloc(numOfWorkers * sizeof(pthread_t));
-    workerArgs wargs[numOfWorkers];
+    workerArgs tWorkerArgs[numOfWorkers];
 
     for (int i = 0; i < numOfWorkers; i++) {
-        wargs[i] = (workerArgs) {i, 1};
-        //  printf("creating thread %d with args: id=%d avail=%d\n", i, wargs[i].id, wargs[i].available);
-        pthread_create(workerThreads + i, NULL, worker, wargs + i);
+        tWorkerArgs[i] = (workerArgs) {i};
+        pthread_create(workerThreads + i, NULL, worker, tWorkerArgs + i);
     }
 
     int cmd = 0;
 
     do {
         char *s = malloc(sizeof(char) * (MAX_PATH_LENGTH + 128));
-
-        printf("Enter a command:\n");
         fgets(s, MAX_PATH_LENGTH + 128, stdin);
+        fflush(stdin);
         cmd = parseCommand(s);
-
+        memset(s, 0, MAX_PATH_LENGTH + 128);
+        // todo fix command staying in stdin
         free(s);
     } while (cmd != -1);
 
-    printf("\nexiting cli thread\n");
+    printf("\nProgram will now exit.\n");
 
     sem_close(&full);
     sem_close(&empty);
@@ -113,17 +111,17 @@ _Noreturn void *cli() {
 
 void helpMenu() {
     printf("Here are the commands you can use:\n");
-    printf("add_dir <abs_or_relative_path> - add a root directory to the program, without a / in the end\n");
+    printf("add_dir <abs_or_relative_path> - add a isRoot directory to the program, without a / in the end\n");
     printf("remove_dir <abs_or_relative_path> - remove a root directory & all its children from the program\n");
     printf("q - quit the program\n");
-    printf("result <abs_or_relative_path> - print result for directory or specific file\n");
+    printf("result <abs_or_relative_path> - print result for directory or specific file\n\n");
 }
 
 int main(int argc, char *argv[]) {
 
     // get cwd
-    strcpy(cwd, argv[0]);
-    cwd[strlen(cwd) - 4] = '\0';
+    getcwd(cwd, MAX_PATH_LENGTH);
+    strcat(cwd, "/");
     puts(cwd);
 
     for (int i = 0; i < 64; i++) {
@@ -134,7 +132,6 @@ int main(int argc, char *argv[]) {
 
     pthread_t commandLineThread;
     pthread_create(&commandLineThread, NULL, cli, NULL);
-
     pthread_join(commandLineThread, NULL);
 
     return 0;

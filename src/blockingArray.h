@@ -1,5 +1,5 @@
 #include <semaphore.h>
-#include "helpers/declarations.h"
+#include "declarations.h"
 
 treeNode *addToBA(treeNode *nodeToAdd) {
     sem_wait(&empty);

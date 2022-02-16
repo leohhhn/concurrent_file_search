@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
-#include "helpers/declarations.h"
+#include "declarations.h"
 #include "helpers/threadHelpers.h"
 #include "blockingArray.h"
 
@@ -46,8 +46,7 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
                 }
             }
 
-            // todo do printf here for checking children's children
-
+            printf("Found a dir: %s! Making a new watcher for it.\n", entry->d_name);
         } else if (entry->d_type == DT_REG) {
             char modifiedTime[50];
             getLastModificationTime(ownPath, entry->d_name, modifiedTime);
@@ -66,28 +65,21 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
 
                         strcpy(faf->files[i]->name, entry->d_name);
                         strcpy(faf->files[i]->lastModified, modifiedTime);
-//                        printf("\nNew file found!\nName: %s\ncurrent modified time: %s\n\n",
-//                               faf->files[i]->name,
-//                               faf->files[i]->lastModified);
                         break;
                     }
                 }
 
-                treeNode *newFileNode = addChildToParent(ownNode, entry->d_name, 1); // todo free this mem
+                treeNode *newFileNode = addChildToParent(ownNode, entry->d_name, 1);
                 addToBA(newFileNode);
-                printf("Added node %s to BA\n", newFileNode->name);
-
+                printf("Found a file: %s! Adding it to BA.\n", newFileNode->name);
             } else if (modifySwitch == 2) { // existing file modified
-                printf("\n%s was modified!\nNew modified time: %s\n", entry->d_name, modifiedTime);
-                printf("Adding %s to BA Again!\n\n", entry->d_name);
+                printf("\n%s was modified! New modified time: %s\n", entry->d_name, modifiedTime);
+                printf("Adding %s to BA again!\n\n", entry->d_name);
 
                 char tmp[MAX_PATH_LENGTH] = "";
                 buildPath(ownPath, entry->d_name, tmp);
 
-                // give just parent instead of root
                 treeNode *modifiedFileNode = findNodeWithPath(ownNode, tmp);
-
-                // printTreeNode(modifiedFileNode, 0);
                 if (modifiedFileNode) {
                     modifiedFileNode->currentRes = 0;
                     modifiedFileNode->partial = 0;
@@ -98,7 +90,7 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
         }
     }
 
-    // remove deleted files from faf
+    // remove deleted files from faf & tree
     for (int i = 0; i < MAX_FILES; ++i) {
         if (!faf->files[i]) continue;
         char tmp[MAX_PATH_LENGTH] = "";
@@ -114,6 +106,22 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
             break;
         } else
             fclose(f);
+    }
+    // remove deleted folders from faf & tree
+    for (int i = 0; i < MAX_FOLDERS; ++i) {
+        if (!faf->folders[i]) continue;
+        char tmp[MAX_PATH_LENGTH] = "";
+        buildPath(ownPath, faf->folders[i], tmp);
+        DIR *dir = opendir(tmp);
+        if (!dir) {
+            printf("\nFolder %s was deleted from the FS and program.\n", faf->folders[i]);
+            treeNode *t = findNodeWithPath(ownNode, tmp);
+            removeChild(t, ownNode);
+            free(faf->folders[i]);
+            faf->folders[i] = NULL;
+            break;
+        } else
+            closedir(dir);
     }
 
     return 0;

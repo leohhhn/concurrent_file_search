@@ -21,7 +21,7 @@ typedef struct treeNode {
     char *fullPath;
     char *name; // just the name of file/dir
     struct treeNode *children[MAX_CHILDREN]; // arr of pointers to children, if node is dir
-    struct treeNode *root; // all children will have a pointer to their root
+    struct treeNode *root; // all children will have a pointer to their isRoot
     // for cli commands
     int isFile; // 1 if file, 0 if dir
     int partial; // 1 if res is partial
@@ -30,14 +30,13 @@ typedef struct treeNode {
 
 typedef struct workerArgs {
     int id;
-    int available; // 1 if available, 0 if working
 } workerArgs;
 
 typedef struct watcherArgs {
     int *toTerminate;
-    int root; // 1 if watcher is root
-    char *path;
-    pthread_t *self;
+    int isRoot; // 1 if watcher is root
+    char *path; // full path
+    pthread_t *self; // keep your own handle so you can free it
     treeNode *dirNode; // pointer to node in tree that the watcher is watching
 } watcherArgs;
 
