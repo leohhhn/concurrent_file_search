@@ -4,6 +4,8 @@
 int numOfWorkers;
 pthread_t *workerThreads; // malloced array of pthread workers
 
+
+
 void *watcher(void *_args) {
     watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a root watcher
     //printf("watcher:: New watcher created at %s\n", args->path);
@@ -11,14 +13,11 @@ void *watcher(void *_args) {
     // allocating memory
     filesAndFolders *faf = malloc(sizeof(filesAndFolders));
     faf->folders = malloc(sizeof(char *) * MAX_FOLDERS);
-    faf->files = malloc(sizeof(fileInfo) * MAX_FILES);
-    faf->fileNum = 0;
-    faf->folderNum = 0;
+    faf->files = malloc(sizeof(fileInfo *) * MAX_FILES);
 
     for (int i = 0; i < MAX_FOLDERS; i++) {
-        faf->folders[i] = malloc(sizeof(char) * MAX_NAME_LENGTH); // mallocing the subarray of chars
-        faf->files[i].name = malloc(sizeof(char) * MAX_NAME_LENGTH);
-        faf->files[i].lastModified = malloc(sizeof(char) * 50);
+        faf->folders[i] = NULL;
+        faf->files[i] = NULL;
     }
 
     // watching
@@ -33,20 +32,23 @@ void *watcher(void *_args) {
         int success = scanDir(args->path, faf, args->dirNode, args->toTerminate);
 
         if (success == -1) {
-            // todo update result tree
             printf("Dir at %s can't be found or was deleted in the OS filesystem. Watcher & children will be exiting.\n",
                    args->path);
             break;
         }
-
         sleep(WATCHER_SLEEP_TIME);
     }
 
+    // free node and all children
+    printf("freeing node at %s\n", args->dirNode->name);
+    freeTreeNode(args->dirNode);
+
+    // todo fix segfault when deleting a folder from the FS
     // freeing memory
     for (int i = 0; i < MAX_FILES; i++) {
         free(faf->folders[i]);
-        free(faf->files[i].name);
-        free(faf->files[i].lastModified);
+        free(faf->files[i]->lastModified);
+        free(faf->files[i]->name);
     }
     free(faf->folders);
     free(faf->files);
@@ -119,9 +121,10 @@ void helpMenu() {
 
 int main(int argc, char *argv[]) {
 
-    char cwd[MAX_PATH_LENGTH] = "";
+    // get cwd
     strcpy(cwd, argv[0]);
     cwd[strlen(cwd) - 4] = '\0';
+    puts(cwd);
 
     for (int i = 0; i < 64; i++) {
         rootWatcherArgsArray[i] = NULL;

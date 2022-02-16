@@ -23,20 +23,22 @@ int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs 
 }
 
 int folderIsNew(filesAndFolders *faf, char *currFolder) {
-    for (int i = 0; i < faf->folderNum; i++)
-        if (strcmp(faf->folders[i], currFolder) == 0)
+    for (int i = 0; i < MAX_FOLDERS; i++)
+        if (faf->folders[i] && strcmp(faf->folders[i], currFolder) == 0)
             return 0; // folder already exists
     return 1;
 }
 
 int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modifiedTime[50]) {
-    for (int i = 0; i < faf->fileNum; i++) {
-        if (strcmp(faf->files[i].name, currFileName) == 0) {
-            if (strcmp(faf->files[i].lastModified, modifiedTime) != 0) {
-                strcpy(faf->files[i].lastModified, modifiedTime); // update modified time, easier here
-                return 2; // was modified
+    for (int i = 0; i < MAX_FILES; i++) {
+        if (faf->files[i]) {
+            if (strcmp(faf->files[i]->name, currFileName) == 0) {
+                if (strcmp(faf->files[i]->lastModified, modifiedTime) != 0) {
+                    strcpy(faf->files[i]->lastModified, modifiedTime);
+                    return 2; // modified
+                } else
+                    return 0; // file is not new and was not modified
             }
-            return 0; // file is not new and was not modified
         }
     }
     return 1; // file is new

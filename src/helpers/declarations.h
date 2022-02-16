@@ -21,10 +21,10 @@ typedef struct treeNode {
     char *fullPath;
     char *name; // just the name of file/dir
     struct treeNode *children[MAX_CHILDREN]; // arr of pointers to children, if node is dir
-    int taken;
+    struct treeNode *root; // all children will have a pointer to their root
     // for cli commands
     int isFile; // 1 if file, 0 if dir
-    int searchCompleted; // 1 if file searched completely
+    int partial; // 1 if res is partial
     int currentRes; // current number of prime numbers in file
 } treeNode;
 
@@ -47,14 +47,13 @@ typedef struct fileInfo {
 } fileInfo;
 
 typedef struct filesAndFolders {
-    fileInfo *files; // array of all non-dir files in watched dir
+    fileInfo **files; // array of all non-dir files in watched dir
     char **folders;
-    int fileNum;
-    int folderNum;
 } filesAndFolders;
 
 watcherArgs *rootWatcherArgsArray[64];
 treeNode *treeRoots[64];
+char cwd[MAX_PATH_LENGTH] = "";
 
 // blocking array synching
 sem_t empty;
@@ -72,11 +71,15 @@ int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs 
 
 int parseCommand(char *command);
 
-treeNode *makeNewTreeNode(char parentPath[MAX_PATH_LENGTH], char currentName[MAX_NAME_LENGTH], int isFile);
+treeNode *makeNewTreeNode(char parentPath[MAX_PATH_LENGTH], char currName[MAX_NAME_LENGTH], int isFile, treeNode *root);
+
+void printTreeNode(treeNode *nodeToPrint, int reqRes);
 
 void freeTreeNode(treeNode *t);
 
-treeNode *findInTree(treeNode *root, char *path);
+treeNode *findNodeWithPath(treeNode *root, char *path);
+
+void removeChild(treeNode *childToRemove, treeNode *parent);
 
 treeNode *addChildToParent(treeNode *parentNode, char *currName, int isFile);
 
@@ -94,7 +97,7 @@ int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modfTime[
 
 void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]);
 
-void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted, char* fileName);
+void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted, char *fileName);
 
 // pthread functions
 void *watcher(void *_args);
