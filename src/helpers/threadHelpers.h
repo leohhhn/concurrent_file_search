@@ -1,4 +1,10 @@
-// initArgs - not null only if creating isRoot watcher
+
+/// Creates a new watcher
+/// @param currPath - dir path at which to create a watcher
+/// @param toTerminate - shared toTerminate pointer for new watcher
+/// @param parent - treeNode pointer to parent
+/// @param initArgs - option to forward watcher args instead of building them here
+/// @note - set initArgs to NULL when not forwarding args
 int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs *initArgs) {
 
     if (initArgs) {

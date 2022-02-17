@@ -6,7 +6,9 @@
 #include "helpers/threadHelpers.h"
 #include "blockingArray.h"
 
-int scanFile(treeNode *nodeToScan, int workerID) {
+/// Opens file and scans for prime numbers
+/// @param nodeToScan - pointer to treeNode of file to scan
+int scanFile(treeNode *nodeToScan) {
     FILE *f = fopen(nodeToScan->fullPath, "r");
 
     if (!f) {
@@ -15,12 +17,16 @@ int scanFile(treeNode *nodeToScan, int workerID) {
     }
 
     nodeToScan->partial = 1;
-    searchFileForNumbers(f, &(nodeToScan->currentRes), workerID, &(nodeToScan->partial), nodeToScan->name);
+    searchFileForPrimeNumbers(f, &(nodeToScan->currentRes), &(nodeToScan->partial));
 
     fclose(f);
     return 0;
 }
 
+/// Scans a given dir and handles watcher's memory
+/// @param faf - watcher's faf
+/// @param ownNode - node being watched by watcher
+/// @param toTerminate - signal for termination of all watchers in a tree. all watchers in a tree share the same pointer
 int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNode, int *toTerminate) {
     DIR *folder = opendir(ownPath);
     struct dirent *entry;
@@ -45,8 +51,8 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
                     break;
                 }
             }
-
             printf("Found a dir: %s! Making a new watcher for it.\n", entry->d_name);
+
         } else if (entry->d_type == DT_REG) {
             char modifiedTime[50];
             getLastModificationTime(ownPath, entry->d_name, modifiedTime);
@@ -56,6 +62,7 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
             if (modifySwitch == 0) { // not new & not modified
                 continue;
             } else if (modifySwitch == 1) { // totally new file
+
                 // malloc new fileInfo and write to it
                 for (int i = 0; i < MAX_FILES; ++i) {
                     if (!faf->files[i]) {
@@ -98,7 +105,8 @@ int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNo
         FILE *f = fopen(tmp, "r");
         if (!f) {
             printf("\nFile %s was deleted from the FS and program.\n", faf->files[i]->name);
-            removeChild(findNodeWithPath(ownNode, tmp), ownNode);
+            treeNode *t = findNodeWithPath(ownNode, tmp);
+            removeChild(t, ownNode);
             free(faf->files[i]->name);
             free(faf->files[i]->lastModified);
             free(faf->files[i]);

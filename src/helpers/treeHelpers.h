@@ -1,5 +1,10 @@
 #include "../declarations.h"
 
+/// Creates a new treeNode
+/// @param parentPath - path of parent dir
+/// @param currName - name of current file or dir
+/// @param isFile - flag for checking if the node is a file or a dir
+/// @param root - pointer to root of the tree
 treeNode *
 makeNewTreeNode(char parentPath[MAX_PATH_LENGTH], char currName[MAX_NAME_LENGTH], int isFile, treeNode *root) {
 
@@ -9,7 +14,7 @@ makeNewTreeNode(char parentPath[MAX_PATH_LENGTH], char currName[MAX_NAME_LENGTH]
     t->name = malloc(sizeof(char) * MAX_PATH_LENGTH);
     t->root = root;
     t->currentRes = 0;
-    t->partial = 0;
+    t->partial = 1;
 
     if (strcmp(currName, "") == 0) { // if creating isRoot node
         strcpy(t->fullPath, parentPath);
@@ -32,7 +37,11 @@ makeNewTreeNode(char parentPath[MAX_PATH_LENGTH], char currName[MAX_NAME_LENGTH]
     return t;
 }
 
-// Adds child to tree given child name and parent, returns pointer to added child
+/// Creates a child given child name and parent treeNode
+/// @param parentNode - parent treeNode
+/// @param currName - name of child node
+/// @param isFile - flag for checking if the node is a file or a dir
+/// @return - pointer to new child if successful, NULL otherwise
 treeNode *addChildToParent(treeNode *parentNode, char *currName, int isFile) {
     // find first null spot to add to array
     for (int i = 0; i < MAX_CHILDREN; i++) {
@@ -44,13 +53,13 @@ treeNode *addChildToParent(treeNode *parentNode, char *currName, int isFile) {
     return NULL;
 }
 
+/// Prints a treeNode
+/// @param nodeToPrint - pointer to the node to print
+/// @param reqRes - 1 if we want to print a single file, 0 if printing a dir
 void printTreeNode(treeNode *nodeToPrint, int reqRes) {
-    // if printing result for a single file
-    if (!nodeToPrint) {
-        printf("\nNode to print is NULL\n");
-        return;
-    }
+    if (!nodeToPrint) return;
 
+    // if printing result for a single file
     if (reqRes) {
         if (nodeToPrint->partial)
             printf("\nNumber of primes in %s is *%d.\n\n", nodeToPrint->name, nodeToPrint->currentRes);
@@ -78,9 +87,12 @@ void printTreeNode(treeNode *nodeToPrint, int reqRes) {
     printf("\n");
 }
 
+
+/// Removes a child given child and parent
+/// @param childToRemove - pointer to child node to remove
+/// @param parent - pointer to parent node to from which to remove the child
 void removeChild(treeNode *childToRemove, treeNode *parent) {
-    // removing is just setting the pointer to null
-    if (!childToRemove) return; // failsafe
+    if (!childToRemove) return;
 
     for (int i = 0; i < MAX_CHILDREN; ++i) {
         if (childToRemove == parent->children[i])
@@ -91,7 +103,8 @@ void removeChild(treeNode *childToRemove, treeNode *parent) {
     return;
 }
 
-// returns pointer to node with given path, otherwise NULL
+/// Returns pointer to node with given path, otherwise NULL
+/// @param ancestor - any ancestor of the node we want to find
 treeNode *findNodeWithPath(treeNode *ancestor, char *path) {
     if (strcmp(ancestor->fullPath, path) == 0) {
         return ancestor;
@@ -107,11 +120,10 @@ treeNode *findNodeWithPath(treeNode *ancestor, char *path) {
     return NULL;
 }
 
-// Frees malloced memory for treeNode
+/// Frees malloced memory given treeNode pointer
 void freeTreeNode(treeNode *t) {
     free(t->fullPath);
     free(t->name);
-    //  free(t->isRoot);
     if (t->isFile) {
         free(t);
         return;
@@ -127,7 +139,9 @@ void freeTreeNode(treeNode *t) {
     return;
 }
 
-// Prints tree given the isRoot
+/// Prints tree given the isRoot
+/// @param root - can be any dir node
+/// @param level - always set to 0 when calling
 void printTree(treeNode *root, int level) {
     if (!root) return;
 
@@ -136,7 +150,7 @@ void printTree(treeNode *root, int level) {
         strcat(tmp, "\t");
 
     if (root->partial)
-        printf("%s%s: *%d, partial: %d\n", tmp, root->name, root->currentRes, root->partial);
+        printf("%s%s: *%d\n", tmp, root->name, root->currentRes);
     else
         printf("%s%s: %d\n", tmp, root->name, root->currentRes);
 
@@ -150,7 +164,8 @@ typedef struct refreshRet {
     int partial;
 } refreshRet;
 
-// Refreshes tree results
+/// Refreshes tree results
+/// @note call before printing any tree
 refreshRet refreshTreeResults(treeNode *root) {
     if (!root) return (refreshRet) {0, 0};
 
@@ -172,6 +187,8 @@ refreshRet refreshTreeResults(treeNode *root) {
     return r;
 }
 
+/// Resets partial flags for dirs
+/// @note call before printing any tree
 void resetDirPartials(treeNode *root) {
     if (!root) return;
 

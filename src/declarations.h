@@ -15,7 +15,7 @@
 #define MAX_CHILDREN MAX_FOLDERS+MAX_FILES
 #define BA_SIZE 64
 
-#define WATCHER_SLEEP_TIME 5
+#define WATCHER_SLEEP_TIME 10
 
 typedef struct treeNode {
     char *fullPath;
@@ -47,14 +47,14 @@ typedef struct fileInfo {
 
 typedef struct filesAndFolders {
     fileInfo **files; // array of all non-dir files in watched dir
-    char **folders;
+    char **folders; // array of paths to folders in watched dir
 } filesAndFolders;
 
-watcherArgs *rootWatcherArgsArray[64];
-treeNode *treeRoots[64];
-char cwd[MAX_PATH_LENGTH] = "";
+watcherArgs *rootWatcherArgsArray[64]; // global root watcher array
+treeNode *treeRoots[64]; // global root treeNode array
+char cwd[MAX_PATH_LENGTH] = ""; // current working dir
 
-// blocking array synching
+// blocking array syncing
 sem_t empty;
 sem_t full;
 sem_t blockingArrayMutex;
@@ -66,7 +66,8 @@ int isNumberPrime(int input);
 
 void helpMenu();
 
-int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs *initArgs);
+
+// treeNode functions
 
 int parseCommand(char *command);
 
@@ -88,7 +89,7 @@ void buildPath(char parentPath[MAX_PATH_LENGTH], char currentName[MAX_NAME_LENGT
 
 int scanDir(char ownPath[MAX_PATH_LENGTH], filesAndFolders *faf, treeNode *ownNode, int *toTerminate);
 
-int scanFile(treeNode *nodeToScan, int workerID);
+int scanFile(treeNode *nodeToScan);
 
 int folderIsNew(filesAndFolders *faf, char *currFolder);
 
@@ -96,10 +97,12 @@ int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modfTime[
 
 void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]);
 
-void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *searchCompleted, char *fileName);
+void searchFileForPrimeNumbers(FILE *f, int *currentRes, int *partial);
 
 // pthread functions
 void *watcher(void *_args);
+
+int makeWatcher(char *currPath, int *toTerminate, treeNode *parent, watcherArgs *initArgs);
 
 _Noreturn void *worker(void *_args);
 

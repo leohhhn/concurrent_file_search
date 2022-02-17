@@ -1,5 +1,5 @@
 .idea
 cmake-build-debug
 main
-data
-data2
+testData
+

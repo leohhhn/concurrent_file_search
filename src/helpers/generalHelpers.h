@@ -1,7 +1,7 @@
 #include <math.h>
 #include <string.h>
 
-/// Returns 1 if number is prime, 0 otherwise
+/// Checks if @param input is prime
 int isNumberPrime(int input) {
     if (input <= 1) return 0;
     for (int i = 2; i <= sqrt(input); i++)
@@ -9,8 +9,12 @@ int isNumberPrime(int input) {
     return 1;
 }
 
-void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *partial, char *fileName) {
-
+/// Searches for prime numbers given file pointer f
+/// @param workerID - ID of worker thread
+/// @note - args below are pointers to treeNode values, forwarded from the worker
+/// @param currentRes - current result of node that is being worked on
+/// @param partial - partially searched flag
+void searchFileForPrimeNumbers(FILE *f, int *currentRes, int *partial) {
     int numberOfPrimes = 0, searchedSoFar = 0, i = 0;
     char *buffer = malloc(BLOCK_SIZE * sizeof(char));
 
@@ -31,6 +35,9 @@ void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *partial, 
                 tmp++;
             }
         }
+
+        // used to slow down workers
+        usleep(100);
     }
 
     *partial = 0;
@@ -39,6 +46,7 @@ void searchFileForNumbers(FILE *f, int *currentRes, int workerID, int *partial, 
     return;
 }
 
+/// Checks if a dir is at the path
 int isDirectory(const char *path) {
     FILE *f = fopen(path, "r+");
     if (f) {
@@ -48,6 +56,7 @@ int isDirectory(const char *path) {
     return 1;
 }
 
+/// Checks if a txt file is at the path
 int isTxtFile(const char *path) {
     // check for txt extension
     if (strcmp(path + strlen(path) - 4, ".txt") == 0)
@@ -55,6 +64,8 @@ int isTxtFile(const char *path) {
     return 0;
 }
 
+/// Concatenates two strings with a slash in between
+/// @note concatenated path is stored in fullFilePath
 void
 buildPath(char parentPath[MAX_PATH_LENGTH], char currentName[MAX_NAME_LENGTH], char fullFilePath[MAX_PATH_LENGTH]) {
     strcpy(fullFilePath, parentPath);
@@ -63,6 +74,9 @@ buildPath(char parentPath[MAX_PATH_LENGTH], char currentName[MAX_NAME_LENGTH], c
     return;
 }
 
+/// Checks if a folder is new
+/// @param faf - watcher's faf
+/// @param currFolder - name of folder to check for
 int folderIsNew(filesAndFolders *faf, char *currFolder) {
     for (int i = 0; i < MAX_FOLDERS; i++)
         if (faf->folders[i] && strcmp(faf->folders[i], currFolder) == 0)
@@ -70,6 +84,10 @@ int folderIsNew(filesAndFolders *faf, char *currFolder) {
     return 1; // folder is new
 }
 
+/// Checks if a file is new or modified
+/// @param faf - watcher's faf
+/// @param currFileName - name of file to check for
+/// @param modifiedTime - last modified time of file. calculated previously by watcher
 int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modifiedTime[50]) {
     for (int i = 0; i < MAX_FILES; i++) {
         if (faf->files[i]) {
@@ -85,6 +103,10 @@ int fileIsNewOrModified(filesAndFolders *faf, char *currFileName, char modifiedT
     return 1; // file is new
 }
 
+/// Gets last modification time of a file
+/// @param parentPath - path of the parent dir
+/// @param currFileName - name of the file to check
+/// @param returnTime - return variable for the last modification time
 void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileName, char returnTime[50]) {
     char fullFilePath[MAX_PATH_LENGTH];
     buildPath(parentPath, currFileName, fullFilePath);
@@ -94,6 +116,7 @@ void getLastModificationTime(char parentPath[MAX_PATH_LENGTH], char *currFileNam
     strftime(returnTime, 50, "%Y-%m-%d %H:%M:%S", localtime(&attrib.st_mtime));
 }
 
+/// Prints current roots
 void printCurrentRoots() {
     for (int i = 0; i < 64; ++i) {
         if (treeRoots[i])

@@ -5,6 +5,7 @@
 int numOfWorkers;
 pthread_t *workerThreads; // malloced array of pthread workers
 
+/// Watcher thread function
 void *watcher(void *_args) {
     watcherArgs *args = (watcherArgs *) _args; // points to an element in global rootWatcherArgs for a isRoot watcher
 
@@ -56,15 +57,15 @@ void *watcher(void *_args) {
     pthread_exit(NULL);
 }
 
+/// Worker thread function
 _Noreturn void *worker(void *a) {
-    workerArgs *args = (workerArgs *) a;
-
     while (1) {
         treeNode *nodeToScan = readFromBA();
-        scanFile(nodeToScan, args->id);
+        scanFile(nodeToScan);
     }
 }
 
+/// CLI thread function
 _Noreturn void *cli() {
     numOfWorkers = 0;
     printf("Enter the number of Worker threads: ");
@@ -77,27 +78,22 @@ _Noreturn void *cli() {
         printf("Number or workers must be at least 1. Please try again.\n");
         pthread_exit(NULL);
     }
+
+    // init semaphores for blocking array
     sem_init(&full, 0, 0);
     sem_init(&empty, 0, numOfWorkers);
     sem_init(&blockingArrayMutex, 0, 1);
 
     workerThreads = malloc(numOfWorkers * sizeof(pthread_t));
-    workerArgs tWorkerArgs[numOfWorkers];
-
     for (int i = 0; i < numOfWorkers; i++) {
-        tWorkerArgs[i] = (workerArgs) {i};
-        pthread_create(workerThreads + i, NULL, worker, tWorkerArgs + i);
+        pthread_create(workerThreads + i, NULL, worker, NULL);
     }
 
     int cmd = 0;
-
     do {
         char *s = malloc(sizeof(char) * (MAX_PATH_LENGTH + 128));
         fgets(s, MAX_PATH_LENGTH + 128, stdin);
-        fflush(stdin);
         cmd = parseCommand(s);
-        memset(s, 0, MAX_PATH_LENGTH + 128);
-        // todo fix command staying in stdin
         free(s);
     } while (cmd != -1);
 
@@ -109,6 +105,7 @@ _Noreturn void *cli() {
     pthread_exit(NULL);
 }
 
+/// Prints help menu to CLI
 void helpMenu() {
     printf("Here are the commands you can use:\n");
     printf("add_dir <abs_or_relative_path> - add a isRoot directory to the program, without a / in the end\n");
@@ -118,18 +115,18 @@ void helpMenu() {
 }
 
 int main(int argc, char *argv[]) {
-
     // get cwd
     getcwd(cwd, MAX_PATH_LENGTH);
     strcat(cwd, "/");
-    puts(cwd);
 
+    // set init values for global arrays
     for (int i = 0; i < 64; i++) {
         rootWatcherArgsArray[i] = NULL;
         treeRoots[i] = NULL;
         blockingArray[i] = NULL;
     }
 
+    // create CLI thread
     pthread_t commandLineThread;
     pthread_create(&commandLineThread, NULL, cli, NULL);
     pthread_join(commandLineThread, NULL);

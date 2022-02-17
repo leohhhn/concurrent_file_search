@@ -1,6 +1,8 @@
 #include <semaphore.h>
 #include "declarations.h"
 
+/// Adds treeNode to the Blocking Array
+/// @note this function is called by a watcher
 treeNode *addToBA(treeNode *nodeToAdd) {
     sem_wait(&empty);
     sem_wait(&blockingArrayMutex);
@@ -14,6 +16,8 @@ treeNode *addToBA(treeNode *nodeToAdd) {
     return nodeToAdd;
 }
 
+/// Reads a treeNode from the Blocking Array
+/// @note this function is called by a worker
 treeNode *readFromBA() {
     treeNode *ret;
     sem_wait(&full);
